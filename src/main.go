@@ -10,6 +10,7 @@ import (
 	"github.com/cyokozai/breakout/breakout"
 )
 
+
 func main() {
 	koebiten.SetHardware(hardware.Device)
 	// koebiten.SetRotation(koebiten.Rotation90)
