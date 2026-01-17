@@ -2,8 +2,8 @@ package breakout
 
 import (
 	"time"
-	"math/rand"
-	
+	// "math/rand/v2"
+
  	"github.com/sago35/koebiten"
  	"github.com/sago35/koebiten/hardware"
 )
@@ -19,10 +19,12 @@ func (g *Game) Update() error {
 	return nil
 }
 
-func NewGame(game *Game) *Game {
-	rand.Seed(time.Now().UnixNano())
+func (g *Game) Draw(screen *koebiten.Image) {
+	koebiten.Println("Hello world", g.count)
+}
+
+func NewGame() *Game {
 	game := &Game{}
-
-
+	
 	return game
 }
