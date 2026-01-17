@@ -7,7 +7,7 @@ import (
 	"github.com/sago35/koebiten/games/blocks/blocks"
 	"github.com/sago35/koebiten/hardware"
 
-	"github.com/cyokozai/src/breakout/breakout"
+	"github.com/cyokozai/breakout/src/breakout/breakout"
 )
 
 
