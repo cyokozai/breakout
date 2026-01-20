@@ -1,11 +1,14 @@
 package breakout
 
 import (
+	"machine"
+	"time"
+
  	"github.com/sago35/koebiten"
 	"tinygo.org/x/tinyfont/freemono"
 	"tinygo.org/x/drivers/pixel"
+	"tinygo.org/x/drivers/tone"
 )
-
 
 type Game struct {
 	// ticker *time.Ticker
@@ -33,24 +36,35 @@ var (
 	initBall_X   = areaWidth / 2
 	initBall_Y   = areaHeight / 2
 	ballRadius   = 2
-	ballVelocity = 2
-	initBlocks_X = 16
-	initBlocks_Y = 8
-	blockWidth   = 8
-	blockHeight  = 12
+	ballVelocity = -2
+	initBlocks_X = 116
+	initBlocks_Y = 3
+	blockWidth   = 4
+	blockHeight  = 8
 	white = pixel.NewMonochrome(0xFF, 0xFF, 0xFF)
 	black = pixel.NewMonochrome(0x00, 0x00, 0x00)
 )
 
-// var (
-// 	textTimer_X int16 = 32
-// 	textTimer_Y int16 = 1
-// 	initTimer    			= 300
-// 	textScore_X int16 = 1
-// 	textScore_Y int16 = 1
-// 	initScore    			= 0
-// 	maxScore     			= 999
-// )
+var (
+	messageText_X int16 = 20
+	messageText_Y int16 = 26
+	// textLives_X int16 = 1
+	// textLives_Y int16 = 10
+	// initLives    			= 3
+	// textTimer_X int16 = 32
+	// textTimer_Y int16 = 1
+	// initTimer    			= 300
+	// textScore_X int16 = 1
+	// textScore_Y int16 = 1
+	// initScore    			= 0
+	// maxScore     			= 999
+)
+
+var (
+	buzzerPin = machine.GPIO1
+	PWM 	    = machine.PWM0
+	mute      = tone.Note(0)
+)
 
 func (g *Game) Reset() {
 	g.ball_x   = initBall_X
@@ -95,7 +109,18 @@ func (g *Game) BallMove() {
 	if g.ball_x >= areaWidth {
 		g.ball_vx = -g.ball_vx
 	}
-	
+
+	for i, b := range g.blocks {
+		if g.ball_x + ballRadius >= b[0] && g.ball_x - ballRadius <= b[0] + blockWidth {
+			if g.ball_y + ballRadius >= b[1] && g.ball_y - ballRadius <= b[1] + blockHeight {
+				g.ball_vx = -g.ball_vx
+				g.blocks = append(g.blocks[:i], g.blocks[i+1:]...)
+
+				break
+			}
+		}
+	}
+
 	if g.ball_y + ballRadius >= g.paddle_y && g.ball_y - ballRadius <= g.paddle_y + paddleHeight {
 		if g.ball_x + ballRadius > g.paddle_x + paddleWidth && g.ball_x - ballRadius < g.paddle_x + paddleWidth {
 			if g.ball_y > 0 {
@@ -104,33 +129,41 @@ func (g *Game) BallMove() {
 			}
 		}
 	}
-
-	// if g.ball_x <= 0 {
-	// 	g.state = "gameover"
-	// }
 }
 
 func (g *Game) Update() error {
 	if g.state != "playing" {
 		return nil
 	} else {
-		// go func() {
-		// 	for ; g.timer >= 0; g.timer-- { <-g.ticker.C }
-		// }()
-		// if g.timer <= 0 { g.state = "gameover" }
-
 		g.PaddleControl()
-
 		g.BallMove()
+
+		if g.ball_x <= 0 {
+			g.state = "gameover"
+		}
+		if len(g.blocks) == 0 {
+			g.state = "clear"
+		}
 	}
 
 	return nil
 }
 
 func (g *Game) Draw(screen *koebiten.Image) {
-	koebiten.DrawRect(screen, area_X, area_Y, areaWidth, areaHeight, white)
-	koebiten.DrawFilledRect(screen, g.paddle_x, g.paddle_y, paddleWidth, paddleHeight, white)
-	koebiten.DrawFilledCircle(screen, g.ball_x, g.ball_y, ballRadius, white)
+	if g.state == "playing" {
+		koebiten.DrawRect(screen, area_X, area_Y, areaWidth, areaHeight, white)
+		koebiten.DrawFilledRect(screen, g.paddle_x, g.paddle_y, paddleWidth, paddleHeight, white)
+		koebiten.DrawFilledCircle(screen, g.ball_x, g.ball_y, ballRadius, white)
+		for _, b := range g.blocks {
+			koebiten.DrawFilledRect(screen, b[0], b[1], blockWidth, blockHeight, white)
+		}
+	} else if g.state == "gameover" {
+		koebiten.DrawFilledRect(screen, 0, 0, screenWidth, screenHeight, black)
+		koebiten.DrawText(screen, "GAME OVER", font, messageText_X, messageText_Y, white)
+	} else if g.state == "clear" {
+		koebiten.DrawFilledRect(screen, 0, 0, screenWidth, screenHeight, black)
+		koebiten.DrawText(screen, "CLEAR!", font, messageText_X, messageText_Y, white)
+	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -138,6 +171,14 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func NewGame() *Game {
+	buzzer, err := tone.New(PWM, buzzerPin)
+	if err != nil {
+		return nil
+	}
+	buzzer.SetNote(tone.B6)
+	time.Sleep(time.Millisecond * 100)
+	buzzer.SetNote(mute)
+
 	game := &Game{
 		// ticker: time.NewTicker(time.Second),
 		// timer: initTimer,
@@ -150,9 +191,9 @@ func NewGame() *Game {
 		paddle_y: initPaddle_Y,
 		blocks: func() [][2]int {
 			b := make([][2]int, 0)
-			for i := 0; i < 5; i++ {
-				for j := 0; j < 8; j++ {
-					b = append(b, [2]int{16 + j*12, 8 + i*6})
+			for i := 0; i < 6; i++ {
+				for j := 0; j < 6; j++ {
+					b = append(b, [2]int{initBlocks_X - j*8, initBlocks_Y + i*10})
 				}
 			}
 			return b
