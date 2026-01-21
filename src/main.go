@@ -12,7 +12,7 @@ import (
 
 func main() {
 	koebiten.SetHardware(hardware.Device)
-	// koebiten.SetRotation(koebiten.Rotation90)
+	koebiten.SetRotation(koebiten.Rotation90)
 	// koebiten.SetWindowSize(64, 128)
 	// koebiten.SetWindowTitle("Breakout in Go")
 
