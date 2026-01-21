@@ -11,12 +11,9 @@ import (
 )
 
 type Game struct {
-	// ticker *time.Ticker
-	// timer int
-	// score int
-	ball_x, ball_y int
-	ball_vx, ball_vy int
-	paddle_x, paddle_y int
+	ballX, ballY int
+	ballVX, ballVY int
+	paddleX, paddleY int
 	blocks [][2]int
 	state string
 }
@@ -25,39 +22,32 @@ var (
 	screenWidth  = 64
 	screenHeight = 128
 	font				 = &freemono.Bold9pt7b
-	area_X       = 4
-	area_Y       = 1
-	areaWidth    = screenWidth - area_X * 2
-	areaHeight   = screenHeight - area_Y * 2
+	areaX        = 4
+	areaY        = 1
+	areaWidth    = screenWidth - areaX * 2
+	areaHeight   = screenHeight - areaY * 2
 	paddleWidth  = 16
 	paddleHeight = 2
-	initPaddle_X = (areaWidth - paddleWidth) / 2 + area_X
-	initPaddle_Y = 120
-	initBall_X   = areaWidth / 2
-	initBall_Y   = areaHeight / 2
+	initPaddleX  = (areaWidth - paddleWidth) / 2 + areaX
+	initPaddleY  = 120
+	initBallX    = areaWidth / 2
+	initBallY    = areaHeight / 2
 	ballRadius   = 2
 	ballVelocity = 2
-	initBlocks_X = 8
-	initBlocks_Y = 8
+	initBlocksX  = 8
+	initBlocksY  = 8
 	blockWidth   = 6
 	blockHeight  = 4
-	white				 = pixel.NewMonochrome(0xFF, 0xFF, 0xFF)
-	black				 = pixel.NewMonochrome(0x00, 0x00, 0x00)
 )
 
 var (
-	messageText_X int16 = 8
-	messageText_Y int16 = 48
-	// textLives_X int16 = 1
-	// textLives_Y int16 = 10
-	// initLives    			= 3
-	// textTimer_X int16 = 32
-	// textTimer_Y int16 = 1
-	// initTimer    			= 300
-	// textScore_X int16 = 1
-	// textScore_Y int16 = 1
-	// initScore    			= 0
-	// maxScore     			= 999
+	white = pixel.NewMonochrome(0xFF, 0xFF, 0xFF)
+	black = pixel.NewMonochrome(0x00, 0x00, 0x00)
+)
+
+var (
+	messageTextX int16 = 8
+	messageTextY int16 = 48
 )
 
 var (
@@ -70,36 +60,36 @@ var (
 
 func (g *Game) PaddleControl() {
 	if koebiten.IsKeyPressed(koebiten.KeyArrowUp) {
-		if g.paddle_x <= area_X {
-			g.paddle_x = area_X
+		if g.paddleX <= areaX {
+			g.paddleX = areaX
 		} else {
-			g.paddle_x--
+			g.paddleX--
 		}
 	}
 	if koebiten.IsKeyPressed(koebiten.KeyArrowDown) {
-		if g.paddle_x + paddleWidth >= area_X + areaWidth {
-			g.paddle_x = area_X + areaWidth - paddleWidth
+		if g.paddleX + paddleWidth >= areaX + areaWidth {
+			g.paddleX = areaX + areaWidth - paddleWidth
 		} else {
-			g.paddle_x++
+			g.paddleX++
 		}
 	}
 }
 
 func (g *Game) BallMove() {
-	g.ball_x += g.ball_vx
-	g.ball_y += g.ball_vy
+	g.ballX += g.ballVX
+	g.ballY += g.ballVY
 
-	if g.ball_x <= area_X || g.ball_x >= areaWidth {
-		g.ball_vx = -g.ball_vx
+	if g.ballX <= areaX || g.ballX >= areaWidth {
+		g.ballVX = -g.ballVX
 	}
-	if g.ball_y <= 0 {
-		g.ball_vy = -g.ball_vy
+	if g.ballY <= 0 {
+		g.ballVY = -g.ballVY
 	}
 
 	for i, b := range g.blocks {
-		if g.ball_x + ballRadius >= b[0] && g.ball_x - ballRadius <= b[0] + blockWidth {
-			if g.ball_y + ballRadius >= b[1] && g.ball_y - ballRadius <= b[1] + blockHeight {
-				g.ball_vx = -g.ball_vx
+		if g.ballX + ballRadius >= b[0] && g.ballX - ballRadius <= b[0] + blockWidth {
+			if g.ballY + ballRadius >= b[1] && g.ballY - ballRadius <= b[1] + blockHeight {
+				g.ballVX = -g.ballVX
 				g.blocks = append(g.blocks[:i], g.blocks[i+1:]...)
 
 				break
@@ -107,10 +97,10 @@ func (g *Game) BallMove() {
 		}
 	}
 
-	if g.ball_y + ballRadius >= g.paddle_y && g.ball_y + ballRadius <= g.paddle_y + paddleHeight {
-		if g.ball_x - ballRadius > g.paddle_x && g.ball_x + ballRadius < g.paddle_x + paddleWidth {
-			g.ball_vy = -g.ball_vy
-			g.ball_y = g.paddle_y - paddleHeight - ballRadius
+	if g.ballY + ballRadius >= g.paddleY && g.ballY + ballRadius <= g.paddleY + paddleHeight {
+		if g.ballX - ballRadius >= g.paddleX && g.ballX + ballRadius <= g.paddleX + paddleWidth {
+			g.ballVY = -g.ballVY
+			g.ballY = g.paddleY - paddleHeight - ballRadius
 		}
 	}
 }
@@ -142,7 +132,7 @@ func (g *Game) Update() error {
 		g.PaddleControl()
 		g.BallMove()
 
-		if g.ball_y >= area_Y + areaHeight {
+		if g.ballY >= areaY + areaHeight {
 			g.state = "gameover"
 			buzzerPlay(buzzer, "gameover")
 		}
@@ -157,18 +147,18 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *koebiten.Image) {
 	if g.state == "playing" {
-		koebiten.DrawRect(screen, area_X, area_Y, areaWidth, areaHeight, white)
-		koebiten.DrawFilledRect(screen, g.paddle_x, g.paddle_y, paddleWidth, paddleHeight, white)
-		koebiten.DrawFilledCircle(screen, g.ball_x, g.ball_y, ballRadius, white)
+		koebiten.DrawRect(screen, areaX, areaY, areaWidth, areaHeight, white)
+		koebiten.DrawFilledRect(screen, g.paddleX, g.paddleY, paddleWidth, paddleHeight, white)
+		koebiten.DrawFilledCircle(screen, g.ballX, g.ballY, ballRadius, white)
 		for _, b := range g.blocks {
 			koebiten.DrawFilledRect(screen, b[0], b[1], blockWidth, blockHeight, white)
 		}
 	} else if g.state == "gameover" {
 		koebiten.DrawFilledRect(screen, 0, 0, screenWidth, screenHeight, black)
-		koebiten.DrawText(screen, "GAME\nOVER", font, messageText_X, messageText_Y, white)
+		koebiten.DrawText(screen, "GAME\nOVER", font, messageTextX, messageTextY, white)
 	} else if g.state == "clear" {
 		koebiten.DrawFilledRect(screen, 0, 0, screenWidth, screenHeight, black)
-		koebiten.DrawText(screen, "CLEAR!", font, messageText_X, messageText_Y, white)
+		koebiten.DrawText(screen, "CLEAR!", font, messageTextX, messageTextY, white)
 	}
 }
 
@@ -180,20 +170,17 @@ func NewGame() *Game {
 	buzzerPlay(buzzer, "boot")
 
 	game := &Game{
-		// ticker: time.NewTicker(time.Second),
-		// timer: initTimer,
-		// score: initScore,
-		ball_x: initBall_X,
-		ball_y: initBall_Y,
-		ball_vx: ballVelocity,
-		ball_vy: ballVelocity,
-		paddle_x: initPaddle_X,
-		paddle_y: initPaddle_Y,
+		ballX: initBallX,
+		ballY: initBallY,
+		ballVX: ballVelocity,
+		ballVY: ballVelocity,
+		paddleX: initPaddleX,
+		paddleY: initPaddleY,
 		blocks: func() [][2]int {
 			b := make([][2]int, 0)
 			for i := 0; i < 6; i++ {
 				for j := 0; j < 6; j++ {
-					b = append(b, [2]int{initBlocks_X + j*9, initBlocks_Y + i*10})
+					b = append(b, [2]int{initBlocksX + j*9, initBlocksY + i*10})
 				}
 			}
 			return b
