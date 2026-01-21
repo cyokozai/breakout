@@ -4,10 +4,10 @@ import (
 	"machine"
 	"time"
 
- 	"github.com/sago35/koebiten"
-	"tinygo.org/x/tinyfont/freemono"
+	"github.com/sago35/koebiten"
 	"tinygo.org/x/drivers/pixel"
 	"tinygo.org/x/drivers/tone"
+	"tinygo.org/x/tinyfont/freemono"
 )
 
 type Game struct {
@@ -41,8 +41,8 @@ var (
 	initBlocks_Y = 8
 	blockWidth   = 6
 	blockHeight  = 4
-	white = pixel.NewMonochrome(0xFF, 0xFF, 0xFF)
-	black = pixel.NewMonochrome(0x00, 0x00, 0x00)
+	white				 = pixel.NewMonochrome(0xFF, 0xFF, 0xFF)
+	black				 = pixel.NewMonochrome(0x00, 0x00, 0x00)
 )
 
 var (
@@ -64,23 +64,9 @@ var (
 	buzzerPin = machine.GPIO1
 	PWM 	    = machine.PWM0
 	mute      = tone.Note(0)
+	buzzer, _ = tone.New(PWM, buzzerPin)
 )
 
-func (g *Game) Reset() {
-	g.ball_x   = initBall_X
-	g.ball_y   = initBall_Y
-	g.ball_vx  = ballVelocity
-	g.ball_vy  = ballVelocity
-	g.paddle_x = initPaddle_X
-	g.paddle_y = initPaddle_Y
-	// g.timer    = initTimer
-	// g.score    = initScore
-	g.state    = "playing"
-}
-
-func (g *Game) IsGameOver() bool {
-	return g.state == "gameover"
-}
 
 func (g *Game) PaddleControl() {
 	if koebiten.IsKeyPressed(koebiten.KeyArrowUp) {
@@ -129,6 +115,26 @@ func (g *Game) BallMove() {
 	}
 }
 
+func buzzerPlay(buzzer tone.Speaker, state string) {
+	if state == "boot" {
+		buzzer.SetNote(tone.B6)
+		time.Sleep(time.Millisecond * 100)
+		buzzer.SetNote(mute)
+	} else if state == "gameover" {
+		buzzer.SetNote(tone.C6)
+		time.Sleep(time.Millisecond * 300)
+		buzzer.SetNote(mute)
+	} else if state == "clear" {
+		buzzer.SetNote(tone.E6)
+		time.Sleep(time.Millisecond * 100)
+		buzzer.SetNote(tone.G6)
+		time.Sleep(time.Millisecond * 100)
+		buzzer.SetNote(tone.C7)
+		time.Sleep(time.Millisecond * 200)
+		buzzer.SetNote(mute)
+	}
+}
+
 func (g *Game) Update() error {
 	if g.state != "playing" {
 		return nil
@@ -138,9 +144,11 @@ func (g *Game) Update() error {
 
 		if g.ball_y >= area_Y + areaHeight {
 			g.state = "gameover"
+			buzzerPlay(buzzer, "gameover")
 		}
 		if len(g.blocks) == 0 {
 			g.state = "clear"
+			buzzerPlay(buzzer, "clear")
 		}
 	}
 
@@ -169,13 +177,7 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func NewGame() *Game {
-	buzzer, err := tone.New(PWM, buzzerPin)
-	if err != nil {
-		return nil
-	}
-	buzzer.SetNote(tone.B6)
-	time.Sleep(time.Millisecond * 100)
-	buzzer.SetNote(mute)
+	buzzerPlay(buzzer, "boot")
 
 	game := &Game{
 		// ticker: time.NewTicker(time.Second),
