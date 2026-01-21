@@ -22,32 +22,32 @@ type Game struct {
 }
 
 var (
-	screenWidth  = 128
-	screenHeight = 64
+	screenWidth  = 64
+	screenHeight = 128
 	font				 = &freemono.Bold9pt7b
 	area_X       = 4
 	area_Y       = 1
 	areaWidth    = screenWidth - area_X * 2
 	areaHeight   = screenHeight - area_Y * 2
-	paddleWidth  = 2
-	paddleHeight = 16
-	initPaddle_X = 8
-	initPaddle_Y = (areaHeight - paddleHeight) / 2
+	paddleWidth  = 16
+	paddleHeight = 2
+	initPaddle_X = (areaWidth - paddleWidth) / 2 + area_X
+	initPaddle_Y = 120
 	initBall_X   = areaWidth / 2
 	initBall_Y   = areaHeight / 2
 	ballRadius   = 2
-	ballVelocity = -2
-	initBlocks_X = 116
-	initBlocks_Y = 3
-	blockWidth   = 4
-	blockHeight  = 8
+	ballVelocity = 2
+	initBlocks_X = 8
+	initBlocks_Y = 8
+	blockWidth   = 6
+	blockHeight  = 4
 	white = pixel.NewMonochrome(0xFF, 0xFF, 0xFF)
 	black = pixel.NewMonochrome(0x00, 0x00, 0x00)
 )
 
 var (
-	messageText_X int16 = 20
-	messageText_Y int16 = 26
+	messageText_X int16 = 8
+	messageText_Y int16 = 48
 	// textLives_X int16 = 1
 	// textLives_Y int16 = 10
 	// initLives    			= 3
@@ -84,17 +84,17 @@ func (g *Game) IsGameOver() bool {
 
 func (g *Game) PaddleControl() {
 	if koebiten.IsKeyPressed(koebiten.KeyArrowUp) {
-		if g.paddle_y <= area_Y {
-			g.paddle_y = area_Y
+		if g.paddle_x <= area_X {
+			g.paddle_x = area_X
 		} else {
-			g.paddle_y--
+			g.paddle_x--
 		}
 	}
 	if koebiten.IsKeyPressed(koebiten.KeyArrowDown) {
-		if g.paddle_y + paddleHeight >= areaHeight {
-			g.paddle_y = areaHeight - paddleHeight
+		if g.paddle_x + paddleWidth >= area_X + areaWidth {
+			g.paddle_x = area_X + areaWidth - paddleWidth
 		} else {
-			g.paddle_y++
+			g.paddle_x++
 		}
 	}
 }
@@ -103,11 +103,11 @@ func (g *Game) BallMove() {
 	g.ball_x += g.ball_vx
 	g.ball_y += g.ball_vy
 
-	if g.ball_y <= area_Y || g.ball_y >= areaHeight {
-		g.ball_vy = -g.ball_vy
-	}
-	if g.ball_x >= areaWidth {
+	if g.ball_x <= area_X || g.ball_x >= areaWidth {
 		g.ball_vx = -g.ball_vx
+	}
+	if g.ball_y <= 0 {
+		g.ball_vy = -g.ball_vy
 	}
 
 	for i, b := range g.blocks {
@@ -121,12 +121,10 @@ func (g *Game) BallMove() {
 		}
 	}
 
-	if g.ball_y + ballRadius >= g.paddle_y && g.ball_y - ballRadius <= g.paddle_y + paddleHeight {
-		if g.ball_x + ballRadius > g.paddle_x + paddleWidth && g.ball_x - ballRadius < g.paddle_x + paddleWidth {
-			if g.ball_y > 0 {
-				g.ball_vx = -g.ball_vx
-				g.ball_x = g.paddle_x + paddleWidth + ballRadius
-			}
+	if g.ball_y + ballRadius >= g.paddle_y && g.ball_y + ballRadius <= g.paddle_y + paddleHeight {
+		if g.ball_x - ballRadius > g.paddle_x && g.ball_x + ballRadius < g.paddle_x + paddleWidth {
+			g.ball_vy = -g.ball_vy
+			g.ball_y = g.paddle_y - paddleHeight - ballRadius
 		}
 	}
 }
@@ -138,7 +136,7 @@ func (g *Game) Update() error {
 		g.PaddleControl()
 		g.BallMove()
 
-		if g.ball_x <= 0 {
+		if g.ball_y >= area_Y + areaHeight {
 			g.state = "gameover"
 		}
 		if len(g.blocks) == 0 {
@@ -159,7 +157,7 @@ func (g *Game) Draw(screen *koebiten.Image) {
 		}
 	} else if g.state == "gameover" {
 		koebiten.DrawFilledRect(screen, 0, 0, screenWidth, screenHeight, black)
-		koebiten.DrawText(screen, "GAME OVER", font, messageText_X, messageText_Y, white)
+		koebiten.DrawText(screen, "GAME\nOVER", font, messageText_X, messageText_Y, white)
 	} else if g.state == "clear" {
 		koebiten.DrawFilledRect(screen, 0, 0, screenWidth, screenHeight, black)
 		koebiten.DrawText(screen, "CLEAR!", font, messageText_X, messageText_Y, white)
@@ -193,7 +191,7 @@ func NewGame() *Game {
 			b := make([][2]int, 0)
 			for i := 0; i < 6; i++ {
 				for j := 0; j < 6; j++ {
-					b = append(b, [2]int{initBlocks_X - j*8, initBlocks_Y + i*10})
+					b = append(b, [2]int{initBlocks_X + j*9, initBlocks_Y + i*10})
 				}
 			}
 			return b
